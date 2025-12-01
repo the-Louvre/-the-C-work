@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <title>Cyberpunk Sequencer · 链表可视化 Demo</title>
+    <style>
+        body {
+            background: #050816;
+            color: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 4px;
+            font-size: 22px;
+            letter-spacing: 1px;
+        }
+
+        h2 {
+            font-size: 14px;
+            color: #9ca3af;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+
+        .panel {
+            background: rgba(15, 15, 40, 0.92);
+            border-radius: 16px;
+            padding: 16px 20px;
+            box-shadow: 0 0 22px rgba(0, 255, 255, 0.15);
+            margin-bottom: 18px;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            width: min(880px, 100%);
+        }
+
+        #controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        label {
+            font-size: 14px;
+            color: #b0c4ff;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        input[type="number"] {
+            width: 70px;
+            padding: 4px 6px;
+            border-radius: 8px;
+            border: 1px solid #3b82f6;
+            background: #020617;
+            color: #e5e7eb;
+        }
+
+        button {
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            background: linear-gradient(135deg, #22c1c3, #4b9fff);
+            color: #020617;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+            transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.15s;
+        }
+
+        button.secondary {
+            background: transparent;
+            color: #e5e7eb;
+            border: 1px solid #64748b;
+            box-shadow: none;
+        }
+
+        button:active {
+            transform: scale(0.97);
+            box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+        }
+
+        #grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .track-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .track-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            width: 150px;
+        }
+
+        .track-label {
+            font-size: 13px;
+            color: #a5b4fc;
+            text-align: right;
+        }
+
+        .track-select {
+            font-size: 12px;
+            padding: 2px 4px;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #020617;
+            color: #e5e7eb;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(16, 26px);
+            gap: 4px;
+        }
+
+        .cell {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            border: 1px solid rgba(148, 163, 184, 0.6);
+            cursor: pointer;
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell.active {
+            background: radial-gradient(circle at 30% 30%, #22c1c3, #3b82f6);
+            border-color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+        }
+
+        .cell.current::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border: 2px solid rgba(239, 68, 68, 0.9);
+            border-radius: 6px;
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+        }
+
+        #status {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        #linkedListPanel h3 {
+            font-size: 14px;
+            margin: 0 0 6px;
+            color: #c4b5fd;
+        }
+
+        #linkedListView {
+            font-family: ui-monospace, Menlo, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+            font-size: 12px;
+            background: #020617;
+            border-radius: 10px;
+            padding: 10px 12px;
+            max-height: 200px;
+            overflow: auto;
+            border: 1px solid #1e293b;
+            color: #e5e7eb;
+            white-space: pre;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Cyberpunk Sequencer · 链表实验前端</h1>
+    <h2>同学在网页上选音符 / 乐器，浏览器播放声音，下方展示对应的“链表逻辑”</h2>
+
+    <!-- 控制面板 -->
+    <div class="panel" id="controls">
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <label>
+                BPM:
+                <input type="number" id="bpmInput" value="120" min="60" max="220">
+            </label>
+            <label>
+                步数(固定16)：<span>4/4 小节 × 4 tick/拍</span>
+            </label>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button id="playBtn">Play</button>
+            <button id="stopBtn" class="secondary">Stop</button>
+            <button id="clearBtn" class="secondary">Clear</button>
+        </div>
+    </div>
+
+    <!-- 网格 + 播放状态 -->
+    <div class="panel">
+        <div id="grid"></div>
+        <div id="status">Ready. 点击格子激活音符，再点 Play 试听。</div>
+    </div>
+
+    <!-- 链表结构视图 -->
+    <div class="panel" id="linkedListPanel">
+        <h3>链表逻辑可视化（对应 C 端的 Track / Note 链）</h3>
+        <div id="linkedListView"></div>
+    </div>
+
+    <script>
+        // ===== 1. 数据结构设定（对应 C 的 Sequencer / Track / Note） =====
+        const totalTicks = 16; // 简化为 16 个 tick
+        const instrumentOptions = [
+            { value: 'kick', label: 'Kick(底鼓)' },
+            { value: 'snare', label: 'Snare(军鼓)' },
+            { value: 'hihat', label: 'Hi-Hat(镲)' },
+            { value: 'bass', label: 'Bass(低音)' },
+            { value: 'synth', label: 'Synth(合成器)' }
+        ];
+
+        // 每个 track 对应 C 里的 Track 节点（这里用对象 + Set 模拟）
+        const tracks = [
+            { id: 1, name: "Track 1", channel: 1, instrument: 'kick', notes: new Set() },
+            { id: 2, name: "Track 2", channel: 2, instrument: 'snare', notes: new Set() },
+            { id: 3, name: "Track 3", channel: 3, instrument: 'bass', notes: new Set() },
+            { id: 4, name: "Track 4", channel: 4, instrument: 'synth', notes: new Set() },
+        ];
+
+        // DOM 引用
+        const gridEl = document.getElementById('grid');
+        const statusEl = document.getElementById('status');
+        const bpmInput = document.getElementById('bpmInput');
+        const playBtn = document.getElementById('playBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const linkedListView = document.getElementById('linkedListView');
+
+        // Web Audio
+        let audioCtx = null;
+        let isPlaying = false;
+        let currentTick = 0;
+        let timerId = null;
+        let cellElements = []; // [trackIndex][tick] -> cell
+
+        function ensureAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // ===== 2. 生成轨道 × 时间格子 =====
+        function createGrid() {
+            gridEl.innerHTML = "";
+            cellElements = [];
+
+            tracks.forEach((track, tIndex) => {
+                const row = document.createElement('div');
+                row.className = 'track-row';
+
+                // 左侧：轨道信息 + 乐器选择
+                const meta = document.createElement('div');
+                meta.className = 'track-meta';
+
+                const label = document.createElement('div');
+                label.className = 'track-label';
+                label.textContent = `T${track.id} · ${track.name}`;
+                meta.appendChild(label);
+
+                const select = document.createElement('select');
+                select.className = 'track-select';
+                instrumentOptions.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.label;
+                    if (opt.value === track.instrument) option.selected = true;
+                    select.appendChild(option);
+                });
+                select.addEventListener('change', () => {
+                    track.instrument = select.value;
+                    updateLinkedListView();
+                });
+                meta.appendChild(select);
+
+                row.appendChild(meta);
+
+                // 右侧：16 个格子
+                const steps = document.createElement('div');
+                steps.className = 'steps';
+
+                const trackCells = [];
+                for (let tick = 0; tick < totalTicks; tick++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.trackIndex = tIndex;
+                    cell.dataset.tick = tick;
+
+                    cell.addEventListener('click', () => {
+                        toggleNote(tIndex, tick);
+                    });
+
+                    steps.appendChild(cell);
+                    trackCells.push(cell);
+                }
+
+                row.appendChild(steps);
+                gridEl.appendChild(row);
+                cellElements.push(trackCells);
+            });
+        }
+
+        function toggleNote(trackIndex, tick) {
+            const track = tracks[trackIndex];
+            if (track.notes.has(tick)) {
+                track.notes.delete(tick);
+            } else {
+                track.notes.add(tick);
+            }
+            refreshGridVisual();
+            updateLinkedListView();
+        }
+
+        function refreshGridVisual() {
+            tracks.forEach((track, tIndex) => {
+                for (let tick = 0; tick < totalTicks; tick++) {
+                    const cell = cellElements[tIndex][tick];
+                    const hasNote = track.notes.has(tick);
+                    cell.classList.toggle('active', hasNote);
+                    cell.classList.toggle('current', tick === currentTick && isPlaying);
+                }
+            });
+        }
+
+        // ===== 3. 声音设计：根据乐器类型选择不同合成方式 =====
+        function playSound(track, tick) {
+            ensureAudioContext();
+            const t0 = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            const inst = track.instrument;
+
+            if (inst === 'kick') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(120, t0);
+                osc.frequency.exponentialRampToValueAtTime(40, t0 + 0.2);
+                gain.gain.setValueAtTime(0.9, t0);
+                gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.25);
+            } else if (inst === 'snare') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(250, t0);
+                gain.gain.setValueAtTime(0.6, t0);
+                gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
+            } else if (inst === 'hihat') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(8000, t0);
+                gain.gain.setValueAtTime(0.3, t0);
+                gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08);
+            } else if (inst === 'bass') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(55 * 2, t0);
+                gain.gain.setValueAtTime(0.5, t0);
+                gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+            } else if (inst === 'synth') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(440, t0);
+                gain.gain.setValueAtTime(0.4, t0);
+                gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
+            }
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(t0);
+            osc.stop(t0 + 0.6);
+        }
+
+        function playTick(tick) {
+            tracks.forEach(track => {
+                if (track.notes.has(tick)) {
+                    playSound(track, tick);
+                }
+            });
+        }
+
+        // ===== 4. 播放逻辑：tick 和 BPM 对应 =====
+        function startPlayback() {
+            ensureAudioContext();
+            if (isPlaying) return;
+            isPlaying = true;
+            currentTick = 0;
+
+            const bpm = parseFloat(bpmInput.value) || 120;
+            const beatsPerBar = 4;
+            const ticksPerBeat = totalTicks / beatsPerBar; // 16 / 4 = 4
+            const msPerBeat = 60000 / bpm;
+            const msPerTick = msPerBeat / ticksPerBeat;
+
+            statusEl.textContent = `Playing at ${bpm} BPM, ${msPerTick.toFixed(1)} ms / tick`;
+
+            function step() {
+                if (!isPlaying) return;
+                playTick(currentTick);
+                refreshGridVisual();
+                currentTick = (currentTick + 1) % totalTicks;
+            }
+
+            step();
+            timerId = setInterval(step, msPerTick);
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+            statusEl.textContent = "Stopped.";
+            refreshGridVisual();
+        }
+
+        function clearAllNotes() {
+            tracks.forEach(t => t.notes.clear());
+            refreshGridVisual();
+            updateLinkedListView();
+            statusEl.textContent = "Cleared all notes.";
+        }
+
+        // ===== 5. 链表逻辑视图（对应 C 的 Track/Note 链） =====
+        function updateLinkedListView() {
+            let lines = [];
+            lines.push("Sequencer {");
+            lines.push(`  bpm = ${bpmInput.value || 120}, totalTicks = ${totalTicks}`);
+            lines.push("  tracks_head:");
+            tracks.forEach(track => {
+                // 模拟 Track 链表：Track1 -> Track2 -> ... -> NULL
+                lines.push(`    TrackNode(id=${track.id}, name="${track.name}", instrument=${track.instrument}) {`);
+                const ticks = Array.from(track.notes).sort((a, b) => a - b);
+                if (ticks.length === 0) {
+                    lines.push("      notes_head: NULL");
+                } else {
+                    let chain = "      notes_head:";
+                    ticks.forEach(tick => {
+                        chain += ` -> NoteNode(tick=${tick})`;
+                    });
+                    chain += " -> NULL";
+                    lines.push(chain);
+                }
+                lines.push("    }");
+            });
+            lines.push("}");
+            linkedListView.textContent = lines.join("\n");
+        }
+
+        // ===== 6. 绑定按钮 =====
+        playBtn.addEventListener('click', () => {
+            startPlayback();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            stopPlayback();
+        });
+
+        clearBtn.addEventListener('click', () => {
+            clearAllNotes();
+        });
+
+        // 初始化
+        createGrid();
+        refreshGridVisual();
+        updateLinkedListView();
+    </script>
+</body>
+
+</html>
